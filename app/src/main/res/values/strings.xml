@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">PathFollowingCar</string>
+    <string name="directionsApiKey">AIzaSyDFOWUE0bzjxroPECBP3E1j2jd4yNbkWyY</string>
+</resources>

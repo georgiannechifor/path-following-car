@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/draw"
+        app:showAsAction="never"
+        android:title="Drawing"/>
+    <item
+        android:id="@+id/control"
+        app:showAsAction="never"
+        android:title="Controls"/>
+    <item
+        android:id="@+id/voice"
+        app:showAsAction="never"
+        android:title="Voice"/>
+    <item
+        android:id="@+id/maps"
+        app:showAsAction="never"
+        android:title="Google Maps"/>
+
+</menu>
