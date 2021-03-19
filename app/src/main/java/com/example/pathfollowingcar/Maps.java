@@ -1,21 +1,20 @@
 package com.example.pathfollowingcar;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -23,7 +22,6 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatTextView;
 import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -35,10 +33,8 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
@@ -49,36 +45,36 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.api.model.RectangularBounds;
-import com.google.android.libraries.places.api.model.TypeFilter;
 import com.google.android.libraries.places.widget.Autocomplete;
 import com.google.android.libraries.places.widget.AutocompleteActivity;
-import com.google.android.libraries.places.widget.AutocompleteSupportFragment;
-import com.google.android.libraries.places.widget.listener.PlaceSelectionListener;
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.maps.DirectionsApi;
 import com.google.maps.DirectionsApiRequest;
 import com.google.maps.GeoApiContext;
-import com.google.maps.GeocodingApi;
-import com.google.maps.android.PolyUtil;
-import com.google.maps.errors.ApiException;
 import com.google.maps.model.DirectionsLeg;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.DirectionsStep;
 import com.google.maps.model.EncodedPolyline;
-import com.google.maps.model.GeocodingResult;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeoutException;
 
-public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
+public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private static final String[] LOCATION_PERMISSIONS = {
@@ -88,21 +84,66 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
     private static final int INITIAL_REQUEST = 1337;
     private static final int CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE = 53;
     private static final int DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE = 63;
-    private FusedLocationProviderClient fusedLocationProviderClient;
     private Marker startMarker;
     private Marker finishMarker;
     private int searchType = 0;
     private Polyline route;
     private List<LatLng> path;
+    private FusedLocationProviderClient fusedLocationProviderClient;
+    private ArrayList<Point> pointsFromRoute;
+
+    //CLOUD AMQP
+    private ConnectionFactory factory = new ConnectionFactory();
+    private Channel channel;
+    private static final String QUEUE_NAME = "PATH_FOLLOWING_CAR";
+
+
+    private void setupConnectionFactory() {
+        String URI = "amqps://cnuluevh:My-bNh599eJWkjPj_rPZz55nk75AEmts@cow.rmq2.cloudamqp.com/cnuluevh";
+        boolean connectionMade = false;
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    factory.setAutomaticRecoveryEnabled(false);
+                    factory.setUri(URI);
+
+                    Connection connection = factory.newConnection();
+                    channel = connection.createChannel();
+
+                    channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+
+                } catch (KeyManagementException | NoSuchAlgorithmException | URISyntaxException | TimeoutException | IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        t.start();
+    }
+
+    private void sendMessage(JsonElement object) {
+        String message = object.toString();
+        try {
+            channel.basicPublish(message, QUEUE_NAME, null, message.getBytes());
+
+            Toast.makeText(this, "Data send to server", Toast.LENGTH_LONG).show();
+            Log.e("MESSAGE TO QUEUE", message + " " + Arrays.toString(message.getBytes()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        if(!isPermissionGiven()) {
+        if (!isPermissionGiven()) {
             givePermission();
         }
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        setupConnectionFactory();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -111,10 +152,34 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
 
         MaterialButton setStartPoint = findViewById(R.id.setStartPoint);
         MaterialButton setFinishPoint = findViewById(R.id.setFinishPoint);
+        MaterialCardView locationCardView = findViewById(R.id.locationCardView);
+        MaterialCardView sendCardView = findViewById(R.id.sendCardView);
+
         Button getRoute = findViewById(R.id.getRoute);
+
+        sendCardView.setVisibility(View.GONE);
 
         getRoute.setOnClickListener(v -> {
             drawRouteFromLocations();
+
+            sendCardView.setAlpha(0f);
+            sendCardView.setVisibility(View.VISIBLE);
+
+            sendCardView.animate()
+                    .alpha(1f)
+                    .setDuration(500)
+                    .setListener(null);
+
+            locationCardView.animate()
+                    .alpha(0f)
+                    .setDuration(500)
+                    .setListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            locationCardView.setVisibility(View.GONE);
+                        }
+                    });
+
         });
 
         setStartPoint.setOnClickListener(v -> {
@@ -125,6 +190,35 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
         setFinishPoint.setOnClickListener(v -> {
             searchType = 2;
             givePermission();
+        });
+
+        ImageButton backButton = findViewById(R.id.backButton);
+        backButton.setOnClickListener(v -> {
+            sendCardView.animate()
+                    .alpha(0f)
+                    .setDuration(500)
+                    .setListener(new AnimatorListenerAdapter() {
+                        @Override
+                        public void onAnimationEnd(Animator animation) {
+                            sendCardView.setVisibility(View.GONE);
+                        }
+                    });
+
+
+            locationCardView.setAlpha(0f);
+            locationCardView.setVisibility(View.VISIBLE);
+
+            locationCardView.animate()
+                    .alpha(1f)
+                    .setDuration(500)
+                    .setListener(null);
+        });
+
+
+        Button sendButton = findViewById(R.id.sendData);
+        sendButton.setOnClickListener(v -> {
+            JsonElement object = new Gson().toJsonTree(pointsFromRoute);
+            sendMessage(object);
         });
     }
 
@@ -140,8 +234,8 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if(permissions.length > 0) {
-            if(searchType == 0) {
+        if (permissions.length > 0) {
+            if (searchType == 0) {
                 getCurrentLocation();
             } else {
                 Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show();
@@ -152,7 +246,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
                 List<Place.Field> fields = Arrays.asList(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG);
                 Intent intent = new Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields).build(this);
 
-                if(searchType == 1) {
+                if (searchType == 1) {
                     startActivityForResult(intent, CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE);
                 } else {
                     startActivityForResult(intent, DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE);
@@ -223,12 +317,12 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
 
     private void setStartLocation(Double lat, Double lng, String addr) {
         String address = "Current Address";
-        if(addr.isEmpty()) {
+        if (addr.isEmpty()) {
             Geocoder gcd = new Geocoder(this, Locale.getDefault());
             List<Address> addresses;
             try {
                 addresses = gcd.getFromLocation(lat, lng, 1);
-                if(!addresses.isEmpty()) {
+                if (!addresses.isEmpty()) {
                     address = addresses.get(0).getAddressLine(0);
                 }
             } catch (IOException e) {
@@ -238,8 +332,8 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             address = addr;
         }
 
-        if(mMap != null) {
-            if(startMarker != null) {
+        if (mMap != null) {
+            if (startMarker != null) {
                 startMarker.remove();
             }
 
@@ -256,17 +350,17 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             fromLocationTxt.setText(String.format("From: %s", address));
         }
 
-        if(route != null) route.remove();
+        if (route != null) route.remove();
     }
 
     private void setFinishLocation(Double lat, Double lng, String addr) {
         String address = "Destination Address";
-        if(addr.isEmpty()) {
+        if (addr.isEmpty()) {
             Geocoder gcd = new Geocoder(this, Locale.getDefault());
             List<Address> addresses;
             try {
                 addresses = gcd.getFromLocation(lat, lng, 1);
-                if(!addresses.isEmpty()) {
+                if (!addresses.isEmpty()) {
                     address = addresses.get(0).getAddressLine(0);
                 }
             } catch (IOException e) {
@@ -276,30 +370,30 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             address = addr;
         }
 
-        if(mMap != null) {
-           if(finishMarker != null) {
-               finishMarker.remove();
-           }
-           finishMarker = mMap.addMarker(
-                   new MarkerOptions().position(new LatLng(lat, lng))
-                           .title("Finish Location")
-                           .snippet(address)
-           );
+        if (mMap != null) {
+            if (finishMarker != null) {
+                finishMarker.remove();
+            }
+            finishMarker = mMap.addMarker(
+                    new MarkerOptions().position(new LatLng(lat, lng))
+                            .title("Finish Location")
+                            .snippet(address)
+            );
 
-           CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(lat, lng)).zoom(17f).build();
-           mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+            CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(lat, lng)).zoom(17f).build();
+            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
 
-           AppCompatTextView toLocationTxt = findViewById(R.id.toLocationTxt);
-           toLocationTxt.setText(String.format("To: %s", address));
+            AppCompatTextView toLocationTxt = findViewById(R.id.toLocationTxt);
+            toLocationTxt.setText(String.format("To: %s", address));
         }
 
-        if(route != null) route.remove();
+        if (route != null) route.remove();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+        if (requestCode == CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
             switch (resultCode) {
                 case AutocompleteActivity.RESULT_OK: {
                     Place place = Autocomplete.getPlaceFromIntent(data);
@@ -317,36 +411,25 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
                     break;
                 }
             }
-        } else if(requestCode == DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
-          switch (resultCode) {
-              case AutocompleteActivity.RESULT_OK: {
-                  Place place = Autocomplete.getPlaceFromIntent(data);
-                  LatLng latLng = place.getLatLng();
-                  setFinishLocation(latLng.latitude, latLng.longitude, place.getName());
-                  break;
-              }
-              case AutocompleteActivity.RESULT_ERROR: {
-                  Status status = Autocomplete.getStatusFromIntent(data);
-                  Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_SHORT).show();
-                  break;
-              }
-              case AutocompleteActivity.RESULT_CANCELED: {
-                  Toast.makeText(this, "Set destination place canceled", Toast.LENGTH_SHORT).show();
-                  break;
-              }
-          }
+        } else if (requestCode == DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+            switch (resultCode) {
+                case AutocompleteActivity.RESULT_OK: {
+                    Place place = Autocomplete.getPlaceFromIntent(data);
+                    LatLng latLng = place.getLatLng();
+                    setFinishLocation(latLng.latitude, latLng.longitude, place.getName());
+                    break;
+                }
+                case AutocompleteActivity.RESULT_ERROR: {
+                    Status status = Autocomplete.getStatusFromIntent(data);
+                    Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_SHORT).show();
+                    break;
+                }
+                case AutocompleteActivity.RESULT_CANCELED: {
+                    Toast.makeText(this, "Set destination place canceled", Toast.LENGTH_SHORT).show();
+                    break;
+                }
+            }
         }
-    }
-
-    private String getEndLocationTitle(DirectionsResult results) {
-        return "Time: " + results.routes[0].legs[0].duration.humanReadable +
-                "Distance : " + results.routes[0].legs[0].distance.humanReadable;
-    }
-
-    private void addPolyline(DirectionsResult results, GoogleMap mMap) {
-        List<LatLng> decodedPath = PolyUtil.decode(results.routes[0].overviewPolyline.getEncodedPath());
-        //Log.w("DECODED PATH", Arrays.toString(decodedPath.toArray()));
-        mMap.addPolyline(new PolylineOptions().addAll(decodedPath));
     }
 
     private void setupGoogleMapScreenSettings(GoogleMap mMap) {
@@ -364,7 +447,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
     }
 
     private void drawRouteFromLocations() {
-        if(startMarker == null || finishMarker == null) {
+        if (startMarker == null || finishMarker == null) {
             Toast.makeText(this, "Choose two locations", Toast.LENGTH_SHORT).show();
         } else {
             path = new ArrayList();
@@ -384,17 +467,17 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             try {
                 DirectionsResult res = req.await();
 
-                if(res.routes != null && res.routes.length > 0) {
+                if (res.routes != null && res.routes.length > 0) {
                     DirectionsRoute route = res.routes[0];
 
-                    if(route.legs != null) {
-                        for(int i = 0; i < route.legs.length; i++) {
+                    if (route.legs != null) {
+                        for (int i = 0; i < route.legs.length; i++) {
                             DirectionsLeg leg = route.legs[i];
-                            if(leg.steps != null) {
-                                for(int j = 0; i < leg.steps.length; j++) {
+                            if (leg.steps != null) {
+                                for (int j = 0; i < leg.steps.length; j++) {
                                     DirectionsStep step = leg.steps[j];
-                                    if(step.steps != null && step.steps.length > 0) {
-                                        for(int k = 0; k < step.steps.length; k++) {
+                                    if (step.steps != null && step.steps.length > 0) {
+                                        for (int k = 0; k < step.steps.length; k++) {
                                             DirectionsStep step1 = step.steps[k];
                                             EncodedPolyline points1 = step1.polyline;
 
@@ -429,6 +512,14 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             if (path.size() > 0) {
                 PolylineOptions opts = new PolylineOptions().addAll(path).color(Color.BLUE).width(25);
                 route = mMap.addPolyline(opts);
+
+                pointsFromRoute = new ArrayList<>();
+
+                for (LatLng p : path) {
+                    Point temp = mMap.getProjection().toScreenLocation(p);
+                    pointsFromRoute.add(temp);
+                }
+                Log.e("SCREEN ROUTE", Arrays.toString(pointsFromRoute.toArray()));
             }
 
             mMap.getUiSettings().setZoomControlsEnabled(true);
@@ -437,34 +528,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback  {
             mMap.animateCamera(cu);
         }
 
-        List<Point> pointsFromRoute = new ArrayList<>();
-        for(LatLng p : path) {
-            Point temp = getScreenPointFromLatLng(p);
-            pointsFromRoute.add(temp);
-        }
-        Log.e("ROUTE", Arrays.toString(pointsFromRoute.toArray()));
-    }
-
-
-    private Point getScreenPointFromLatLng(LatLng point) {
-        int numTiles = 1 << (int)mMap.getCameraPosition().zoom;
-        Projection projection = mMap.getProjection();
-        Point worldCoordinate = projection.toScreenLocation(point);
-        Point pixelCoordinate = new Point(
-                worldCoordinate.x * numTiles,
-                worldCoordinate.y * numTiles);
-
-        LatLng topLeft = new LatLng(projection.getVisibleRegion().latLngBounds.northeast.latitude, projection.getVisibleRegion().latLngBounds.southwest.longitude);
-
-        Point topLeftWorldCoordinate = projection.toScreenLocation(topLeft);
-        Point topLeftPixelCoordinate = new Point(
-                topLeftWorldCoordinate.x * numTiles,
-                topLeftWorldCoordinate.y * numTiles);
-
-        return new Point(
-                pixelCoordinate.x - topLeftPixelCoordinate.x,
-                pixelCoordinate.y - topLeftPixelCoordinate.y
-        );
     }
 }
 
