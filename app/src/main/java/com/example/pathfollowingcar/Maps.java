@@ -60,79 +60,28 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.DirectionsStep;
 import com.google.maps.model.EncodedPolyline;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeoutException;
 
 public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
+    private Marker startMarker;
+    private Marker finishMarker;
+    private Polyline route;
     private GoogleMap mMap;
-    private static final String[] LOCATION_PERMISSIONS = {
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
-    };
+    private List<LatLng> path;
+    private ArrayList<Point> pointsFromRoute;
+    private FusedLocationProviderClient fusedLocationProviderClient;
+    private int searchType = 0;
     private static final int INITIAL_REQUEST = 1337;
     private static final int CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE = 53;
     private static final int DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE = 63;
-    private Marker startMarker;
-    private Marker finishMarker;
-    private int searchType = 0;
-    private Polyline route;
-    private List<LatLng> path;
-    private FusedLocationProviderClient fusedLocationProviderClient;
-    private ArrayList<Point> pointsFromRoute;
+    private static final String[] LOCATION_PERMISSIONS = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION};
 
-    //CLOUD AMQP
-    private ConnectionFactory factory = new ConnectionFactory();
-    private Channel channel;
-    private static final String QUEUE_NAME = "PATH_FOLLOWING_CAR";
-
-
-    private void setupConnectionFactory() {
-        String URI = "amqps://cnuluevh:My-bNh599eJWkjPj_rPZz55nk75AEmts@cow.rmq2.cloudamqp.com/cnuluevh";
-        boolean connectionMade = false;
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    factory.setAutomaticRecoveryEnabled(false);
-                    factory.setUri(URI);
-
-                    Connection connection = factory.newConnection();
-                    channel = connection.createChannel();
-
-                    channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-
-                } catch (KeyManagementException | NoSuchAlgorithmException | URISyntaxException | TimeoutException | IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
-
-        t.start();
-    }
-
-    private void sendMessage(JsonElement object) {
-        String message = object.toString();
-        try {
-            channel.basicPublish(message, QUEUE_NAME, null, message.getBytes());
-
-            Toast.makeText(this, "Data send to server", Toast.LENGTH_LONG).show();
-            Log.e("MESSAGE TO QUEUE", message + " " + Arrays.toString(message.getBytes()));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,8 +91,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-
-        setupConnectionFactory();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -218,18 +165,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
         Button sendButton = findViewById(R.id.sendData);
         sendButton.setOnClickListener(v -> {
             JsonElement object = new Gson().toJsonTree(pointsFromRoute);
-            sendMessage(object);
         });
-    }
-
-    private boolean isPermissionGiven() {
-        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void givePermission() {
-        System.out.println(Arrays.toString(LOCATION_PERMISSIONS));
-        requestPermissions(LOCATION_PERMISSIONS, INITIAL_REQUEST);
     }
 
     @Override
@@ -276,6 +212,62 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
         } else {
             requestPermissions(LOCATION_PERMISSIONS, INITIAL_REQUEST);
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+            switch (resultCode) {
+                case AutocompleteActivity.RESULT_OK: {
+                    Place place = Autocomplete.getPlaceFromIntent(data);
+                    LatLng latLng = place.getLatLng();
+                    setStartLocation(latLng.latitude, latLng.longitude, place.getName());
+                    break;
+                }
+                case AutocompleteActivity.RESULT_ERROR: {
+                    Status status = Autocomplete.getStatusFromIntent(data);
+                    Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_LONG).show();
+                    break;
+                }
+                case AutocompleteActivity.RESULT_CANCELED: {
+                    Toast.makeText(this, "Set current place canceled", Toast.LENGTH_SHORT).show();
+                    break;
+                }
+            }
+        } else if (requestCode == DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
+            switch (resultCode) {
+                case AutocompleteActivity.RESULT_OK: {
+                    Place place = Autocomplete.getPlaceFromIntent(data);
+                    LatLng latLng = place.getLatLng();
+                    setFinishLocation(latLng.latitude, latLng.longitude, place.getName());
+                    break;
+                }
+                case AutocompleteActivity.RESULT_ERROR: {
+                    Status status = Autocomplete.getStatusFromIntent(data);
+                    Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_SHORT).show();
+                    break;
+                }
+                case AutocompleteActivity.RESULT_CANCELED: {
+                    Toast.makeText(this, "Set destination place canceled", Toast.LENGTH_SHORT).show();
+                    break;
+                }
+            }
+        }
+    }
+
+    private void setupGoogleMapScreenSettings(GoogleMap mMap) {
+        mMap.setBuildingsEnabled(true);
+        mMap.setIndoorEnabled(true);
+        mMap.setTrafficEnabled(true);
+        UiSettings mUiSettings = mMap.getUiSettings();
+        mUiSettings.setZoomControlsEnabled(true);
+        mUiSettings.setCompassEnabled(true);
+        mUiSettings.setMyLocationButtonEnabled(true);
+        mUiSettings.setScrollGesturesEnabled(true);
+        mUiSettings.setZoomGesturesEnabled(true);
+        mUiSettings.setTiltGesturesEnabled(true);
+        mUiSettings.setRotateGesturesEnabled(true);
     }
 
     private void getCurrentLocation() {
@@ -390,62 +382,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
         if (route != null) route.remove();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == CURRENT_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
-            switch (resultCode) {
-                case AutocompleteActivity.RESULT_OK: {
-                    Place place = Autocomplete.getPlaceFromIntent(data);
-                    LatLng latLng = place.getLatLng();
-                    setStartLocation(latLng.latitude, latLng.longitude, place.getName());
-                    break;
-                }
-                case AutocompleteActivity.RESULT_ERROR: {
-                    Status status = Autocomplete.getStatusFromIntent(data);
-                    Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_LONG).show();
-                    break;
-                }
-                case AutocompleteActivity.RESULT_CANCELED: {
-                    Toast.makeText(this, "Set current place canceled", Toast.LENGTH_SHORT).show();
-                    break;
-                }
-            }
-        } else if (requestCode == DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE) {
-            switch (resultCode) {
-                case AutocompleteActivity.RESULT_OK: {
-                    Place place = Autocomplete.getPlaceFromIntent(data);
-                    LatLng latLng = place.getLatLng();
-                    setFinishLocation(latLng.latitude, latLng.longitude, place.getName());
-                    break;
-                }
-                case AutocompleteActivity.RESULT_ERROR: {
-                    Status status = Autocomplete.getStatusFromIntent(data);
-                    Toast.makeText(this, status.getStatusMessage(), Toast.LENGTH_SHORT).show();
-                    break;
-                }
-                case AutocompleteActivity.RESULT_CANCELED: {
-                    Toast.makeText(this, "Set destination place canceled", Toast.LENGTH_SHORT).show();
-                    break;
-                }
-            }
-        }
-    }
-
-    private void setupGoogleMapScreenSettings(GoogleMap mMap) {
-        mMap.setBuildingsEnabled(true);
-        mMap.setIndoorEnabled(true);
-        mMap.setTrafficEnabled(true);
-        UiSettings mUiSettings = mMap.getUiSettings();
-        mUiSettings.setZoomControlsEnabled(true);
-        mUiSettings.setCompassEnabled(true);
-        mUiSettings.setMyLocationButtonEnabled(true);
-        mUiSettings.setScrollGesturesEnabled(true);
-        mUiSettings.setZoomGesturesEnabled(true);
-        mUiSettings.setTiltGesturesEnabled(true);
-        mUiSettings.setRotateGesturesEnabled(true);
-    }
-
     private void drawRouteFromLocations() {
         if (startMarker == null || finishMarker == null) {
             Toast.makeText(this, "Choose two locations", Toast.LENGTH_SHORT).show();
@@ -469,7 +405,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
                 if (res.routes != null && res.routes.length > 0) {
                     DirectionsRoute route = res.routes[0];
-
                     if (route.legs != null) {
                         for (int i = 0; i < route.legs.length; i++) {
                             DirectionsLeg leg = route.legs[i];
@@ -516,6 +451,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 pointsFromRoute = new ArrayList<>();
 
                 for (LatLng p : path) {
+
                     Point temp = mMap.getProjection().toScreenLocation(p);
                     pointsFromRoute.add(temp);
                 }
@@ -528,6 +464,23 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
             mMap.animateCamera(cu);
         }
 
+        List<Point> pointsFromRoute = new ArrayList<>();
+        for (LatLng p : path) {
+            Point temp = mMap.getProjection().toScreenLocation(p);
+
+            pointsFromRoute.add(temp);
+        }
+        Log.e("ROUTE", Arrays.toString(pointsFromRoute.toArray()));
+    }
+
+    private boolean isPermissionGiven() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void givePermission() {
+        System.out.println(Arrays.toString(LOCATION_PERMISSIONS));
+        requestPermissions(LOCATION_PERMISSIONS, INITIAL_REQUEST);
     }
 }
 

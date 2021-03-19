@@ -11,5 +11,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <Button
+        android:id="@+id/drawingSendButton"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_alignParentBottom="true"
+        android:gravity="center"
+        android:layout_margin="10dp"
+        android:text="Send" />
 
 </RelativeLayout>

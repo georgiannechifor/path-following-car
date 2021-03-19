@@ -4,33 +4,109 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.pathfollowingcar.server.Api;
+import com.example.pathfollowingcar.server.DrawingDTO;
 import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.net.PlacesClient;
 
+import org.json.JSONObject;
+
+import java.util.Arrays;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 public class Drawing extends AppCompatActivity {
     private PaintView paintView;
-    private static final String MAPS_API_KEY = "AIzaSyDFOWUE0bzjxroPECBP3E1j2jd4yNbkWyY";
+    private Retrofit retrofit;
+    private Api api;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Places.initialize(getApplicationContext(), MAPS_API_KEY);
+        Places.initialize(getApplicationContext(), BuildConfig.MAPS_API_KEY);
         PlacesClient placesClient = Places.createClient(this);
+
         setContentView(R.layout.activity_drawing);
         paintView = (PaintView) findViewById(R.id.paintView);
         SharedPreferences shPref = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         paintView.addSharedPreferences(shPref);
 
+
+        Button drawingSend = findViewById(R.id.drawingSendButton);
+
         String option = shPref.getString("PREF_LIST", "Medium");
         setTitle("Drawing");
+
+
+        retrofit = new Retrofit.Builder()
+                .baseUrl(BuildConfig.API_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        api = retrofit.create(Api.class);
+
+        Call<List<DrawingDTO>> getCall = api.getDrawings();
+        getCall.enqueue(new Callback<List<DrawingDTO>>() {
+            @Override
+            public void onResponse(Call<List<DrawingDTO>> call, Response<List<DrawingDTO>> response) {
+                if(!response.isSuccessful()) {
+                    Toast.makeText(getApplicationContext(), response.code() + " " + response.message(), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                List<DrawingDTO> drawings = response.body();
+
+                Log.e("GET_DRAWINGS", Arrays.toString(drawings.toArray()));
+            }
+
+            @Override
+            public void onFailure(Call<List<DrawingDTO>> call, Throwable t) {
+                Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        drawingSend.setOnClickListener(v -> {
+            if (paintView.pointsValidated.size() > 0) {
+                try {
+                    JSONObject obj = new JSONObject();
+                    obj.put("points", paintView.stringList);
+                    Call<DrawingDTO> postCall = api.postDrawing(obj);
+
+                    postCall.enqueue(new Callback<DrawingDTO>() {
+                        @Override
+                        public void onResponse(Call<DrawingDTO> call, Response<DrawingDTO> response) {
+                            Toast.makeText(getApplicationContext(), response.code() + " " + response.message(), Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onFailure(Call<DrawingDTO> call, Throwable t) {
+                            Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_SHORT).show();
+
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+        });
     }
 
     @Override
