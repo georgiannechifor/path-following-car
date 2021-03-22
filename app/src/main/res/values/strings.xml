@@ -1,4 +1,14 @@
 <resources>
     <string name="app_name">PathFollowingCar</string>
     <string name="directionsApiKey">AIzaSyDFOWUE0bzjxroPECBP3E1j2jd4yNbkWyY</string>
+    <string name="controls">
+        1. Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters
+
+        2. Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters
+
+        3. Rotate clockwise - the car will rotate 15 degrees clockwise
+
+        4. Rotate counterclockwise - the car will rotate 15 degrees counter clockwise
+    </string>
 </resources>
+

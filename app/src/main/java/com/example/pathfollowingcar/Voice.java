@@ -1,12 +1,6 @@
 package com.example.pathfollowingcar;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -14,6 +8,7 @@ import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.text.Html;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -21,7 +16,13 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -45,6 +46,14 @@ public class Voice extends AppCompatActivity {
         editText = findViewById(R.id.text);
         micButton = findViewById(R.id.speech);
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
+        TextView controls = (TextView) findViewById(R.id.controls);
+        controls.setText(Html.fromHtml("<ol>\n" +
+                "<li>Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters</li>\n" +
+                "<li>Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters</li>\n" +
+                "<li>Rotate clockwise - the car will rotate 15 degrees clockwise</li>\n" +
+                "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
+                "</ol>", Html.FROM_HTML_MODE_COMPACT));
 
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);

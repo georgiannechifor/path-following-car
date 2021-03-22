@@ -15,6 +15,9 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -353,6 +356,36 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater menuInflater = getMenuInflater();
+        menuInflater.inflate(R.menu.menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        Intent intent;
+        switch(item.getItemId()) {
+            case R.id.draw:
+                intent = new Intent(getApplicationContext(), Drawing.class);
+                startActivity(intent);
+                return true;
+            case R.id.control:
+                intent = new Intent(getApplicationContext(), Controls.class);
+                startActivity(intent);
+                return true;
+            case R.id.voice:
+                intent = new Intent(getApplicationContext(), Voice.class);
+                startActivity(intent);
+                return true;
+            case R.id.maps:
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     private void setupGoogleMapScreenSettings(GoogleMap mMap) {

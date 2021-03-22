@@ -15,20 +15,20 @@
 
     <Button
         android:id="@+id/up"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="up"
-        android:textSize="15sp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="▲"
+        android:textSize="50sp"
         android:layout_above="@id/view"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true" />
 
     <Button
         android:id="@+id/down"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="down"
-        android:textSize="15sp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="▼"
+        android:textSize="50sp"
         android:layout_below="@id/view"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"/>
@@ -36,10 +36,10 @@
 
     <Button
         android:id="@+id/left"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="left"
-        android:textSize="15sp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="◀"
+        android:textSize="50sp"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
         android:layout_toStartOf="@id/view" />
@@ -47,13 +47,27 @@
 
     <Button
         android:id="@+id/right"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="right"
-        android:textSize="15sp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:text="▶"
+        android:textSize="50sp"
         android:layout_toEndOf="@id/view"
         android:layout_centerVertical="true"
         android:layout_centerHorizontal="true"/>
+
+    <Button
+        android:id="@+id/connectButton"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:text="Connect To Car"
+        android:background="@color/quantum_googgreen"
+        android:textColor="@color/quantum_white_100"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="30dp"
+        android:layout_marginLeft="30dp"
+        android:layout_marginRight="30dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"/>
 
 
 </RelativeLayout>
