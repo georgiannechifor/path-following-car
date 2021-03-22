@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -20,9 +19,6 @@ import com.google.android.libraries.places.api.Places;
 import com.google.android.libraries.places.api.net.PlacesClient;
 
 import org.json.JSONObject;
-
-import java.util.Arrays;
-import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -61,26 +57,6 @@ public class Drawing extends AppCompatActivity {
 
         api = retrofit.create(Api.class);
 
-        Call<List<DrawingDTO>> getCall = api.getDrawings();
-        getCall.enqueue(new Callback<List<DrawingDTO>>() {
-            @Override
-            public void onResponse(Call<List<DrawingDTO>> call, Response<List<DrawingDTO>> response) {
-                if(!response.isSuccessful()) {
-                    Toast.makeText(getApplicationContext(), response.code() + " " + response.message(), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                List<DrawingDTO> drawings = response.body();
-
-                Log.e("GET_DRAWINGS", Arrays.toString(drawings.toArray()));
-            }
-
-            @Override
-            public void onFailure(Call<List<DrawingDTO>> call, Throwable t) {
-                Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-
         drawingSend.setOnClickListener(v -> {
             if (paintView.pointsValidated.size() > 0) {
                 try {
@@ -103,8 +79,6 @@ public class Drawing extends AppCompatActivity {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-
-
             }
         });
     }

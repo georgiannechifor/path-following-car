@@ -425,7 +425,7 @@ class PaintView extends View {
     }
 
     static List<String> toStringList(List<Point> pointList, double scale, int screenSize, SharedPreferences sharedPreferences) {
-        ArrayList<String> stringList = new ArrayList<String>();
+        ArrayList<String> stringList = new ArrayList<>();
         int instructionCount = (2 * pointList.size()) - 3;
         stringList.add(instructionCount + "!");
 

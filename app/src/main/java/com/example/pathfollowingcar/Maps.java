@@ -27,6 +27,8 @@ import androidx.appcompat.widget.AppCompatTextView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.pathfollowingcar.server.Api;
+import com.example.pathfollowingcar.server.DrawingDTO;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.maps.CameraUpdate;
@@ -52,11 +54,13 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.maps.DirectionsApi;
 import com.google.maps.DirectionsApiRequest;
 import com.google.maps.GeoApiContext;
+import com.google.maps.android.SphericalUtil;
 import com.google.maps.model.DirectionsLeg;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.DirectionsStep;
-import com.google.maps.model.EncodedPolyline;
+
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,14 +68,23 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
+    private Api api;
     private Marker startMarker;
     private Marker finishMarker;
     private Marker currentMarker;
+    private Location currentLocation;
+    private Retrofit retrofit;
     private Polyline route;
     private GoogleMap mMap;
-    private List<LatLng> path;
+    private ArrayList<LatLng> path;
     private ArrayList<MapPoint> stepPointsInRoute = new ArrayList<>();
     private FusedLocationProviderClient fusedLocationProviderClient;
     private int searchType = 0;
@@ -80,6 +93,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
     private static final int DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE = 63;
     private static final int REQUEST_PERMISSION_PHONE_STATE = 1;
     private static final String[] LOCATION_PERMISSIONS = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION};
+
 
     private void showPhoneStatePermission() {
         int permissionCheck = ContextCompat.checkSelfPermission(
@@ -114,6 +128,13 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 .findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
+
+        retrofit = new Retrofit.Builder()
+                .baseUrl(BuildConfig.API_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        api = retrofit.create(Api.class);
 
         MaterialButton setStartPoint = findViewById(R.id.setStartPoint);
         MaterialButton setFinishPoint = findViewById(R.id.setFinishPoint);
@@ -182,6 +203,43 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
         Button sendButton = findViewById(R.id.sendData);
         sendButton.setOnClickListener(v -> {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("points", getStringList());
+                Call<DrawingDTO> postCall = api.postMaps(obj);
+
+                postCall.enqueue(new Callback<DrawingDTO>() {
+                    @Override
+                    public void onResponse(Call<DrawingDTO> call, Response<DrawingDTO> response) {
+                        Toast.makeText(getApplicationContext(), response.code() + " " + response.message(), Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onFailure(Call<DrawingDTO> call, Throwable t) {
+                        Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_SHORT).show();
+
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            mMap.getUiSettings().setZoomControlsEnabled(true);
+            mMap.getUiSettings().setScrollGesturesEnabled(true);
+            mMap.getUiSettings().setZoomGesturesEnabled(true);
+            mMap.getUiSettings().setTiltGesturesEnabled(true);
+            mMap.getUiSettings().setRotateGesturesEnabled(true);
+
+            route.remove();
+            startMarker.remove();
+            finishMarker.remove();
+
+            currentMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())));
+            CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).zoom(17f).build();
+            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+
+            backButton.performClick();
+
             System.out.println(getStringList());
         });
     }
@@ -240,11 +298,11 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                     if (isGPS) {
                         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 10, listener);
 
-                        Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                        if (loc != null) {
-                            currentMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(loc.getLatitude(), loc.getLongitude())));
-                            CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(loc.getLatitude(), loc.getLongitude())).zoom(17f).build();
-                            mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                        currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                        if (currentLocation != null) {
+                            currentMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())));
+                            CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).zoom(17f).build();
+                            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
                         }
                     }
                 }
@@ -304,17 +362,19 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
         UiSettings mUiSettings = mMap.getUiSettings();
         mUiSettings.setMyLocationButtonEnabled(true);
-        mUiSettings.setCompassEnabled(true);
+        mUiSettings.setCompassEnabled(false);
         mUiSettings.setMyLocationButtonEnabled(true);
+        mUiSettings.setTiltGesturesEnabled(false);
 
         mUiSettings.setZoomControlsEnabled(true); // DISABLE WHEN ROUTE IS GIVEN
         mUiSettings.setScrollGesturesEnabled(true); // DISABLE WHEN ROUTE IS GIVEN
         mUiSettings.setZoomGesturesEnabled(true); // DISABLE WHEN ROUTE IS GIVEN
-        mUiSettings.setTiltGesturesEnabled(true); // DISABLE WHEN ROUTE IS GIVEN
         mUiSettings.setRotateGesturesEnabled(true); // DISABLE WHEN ROUTE IS GIVEN
     }
 
     private void setStartLocation(Double lat, Double lng, String addr) {
+        if (route != null && route.getPoints().size() > 0) route.remove();
+        currentMarker.remove();
         String address = "Current Address";
         if (addr.isEmpty()) {
             Geocoder gcd = new Geocoder(this, Locale.getDefault());
@@ -348,11 +408,10 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
             AppCompatTextView fromLocationTxt = findViewById(R.id.fromLocationTxt);
             fromLocationTxt.setText(String.format("From: %s", address));
         }
-
-        if (route != null) route.remove();
     }
 
     private void setFinishLocation(Double lat, Double lng, String addr) {
+        if (route != null && route.getPoints().size() > 0) route.remove();
         String address = "Destination Address";
         if (addr.isEmpty()) {
             Geocoder gcd = new Geocoder(this, Locale.getDefault());
@@ -385,8 +444,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
             AppCompatTextView toLocationTxt = findViewById(R.id.toLocationTxt);
             toLocationTxt.setText(String.format("To: %s", address));
         }
-
-        if (route != null) route.remove();
     }
 
     private boolean drawRouteFromLocations() {
@@ -394,15 +451,15 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
             Toast.makeText(this, "Choose two locations", Toast.LENGTH_SHORT).show();
             return false;
         } else {
-            currentMarker.remove();
-            mMap.getUiSettings().setZoomControlsEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
-            mMap.getUiSettings().setScrollGesturesEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
-            mMap.getUiSettings().setZoomGesturesEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
-            mMap.getUiSettings().setTiltGesturesEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
-            mMap.getUiSettings().setRotateGesturesEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
-            mMap.getUiSettings().setZoomControlsEnabled(false); // DISABLE WHEN ROUTE IS GIVEN
+            if (route != null) route.remove();
+            mMap.getUiSettings().setZoomControlsEnabled(false);
+            mMap.getUiSettings().setScrollGesturesEnabled(false);
+            mMap.getUiSettings().setZoomGesturesEnabled(false);
+            mMap.getUiSettings().setTiltGesturesEnabled(false);
+            mMap.getUiSettings().setRotateGesturesEnabled(false);
 
-            path = new ArrayList();
+            path = new ArrayList<>();
+            stepPointsInRoute = new ArrayList<>();
 
             LatLngBounds.Builder builder = new LatLngBounds.Builder();
             builder.include(startMarker.getPosition());
@@ -418,7 +475,6 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
             try {
                 DirectionsResult res = req.await();
-
                 if (res.routes != null && res.routes.length > 0) {
                     DirectionsRoute route = res.routes[0];
                     if (route.legs != null) {
@@ -428,33 +484,8 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                                 for (int j = 0; i < leg.steps.length; j++) {
                                     DirectionsStep step = leg.steps[j];
 
-                                    MapPoint mapPoint = new MapPoint(step.startLocation, step.endLocation, step.distance.inMeters);
+                                    MapPoint mapPoint = new MapPoint(step.startLocation, step.endLocation, step.distance.inMeters, step.htmlInstructions);
                                     stepPointsInRoute.add(mapPoint);
-
-                                    if (step.steps != null && step.steps.length > 0) {
-                                        for (int k = 0; k < step.steps.length; k++) {
-                                            DirectionsStep step1 = step.steps[k];
-                                            EncodedPolyline points1 = step1.polyline;
-
-                                            if (points1 != null) {
-                                                //Decode polyline and add points to list of route coordinates
-                                                List<com.google.maps.model.LatLng> coords1 = points1.decodePath();
-                                                for (com.google.maps.model.LatLng coord1 : coords1) {
-                                                    path.add(new LatLng(coord1.lat, coord1.lng));
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        EncodedPolyline points = step.polyline;
-                                        if (points != null) {
-                                            //Decode polyline and add points to list of route coordinates
-                                            List<com.google.maps.model.LatLng> coords = points.decodePath();
-                                            for (com.google.maps.model.LatLng coord : coords) {
-                                                path.add(new LatLng(coord.lat, coord.lng));
-                                                builder.include(new LatLng(coord.lat, coord.lng));
-                                            }
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -464,12 +495,25 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 Log.e("ERROR", ex.getLocalizedMessage());
             }
 
+            for (MapPoint p : stepPointsInRoute) {
+                path.add(new LatLng(p.getStartPoint().lat, p.getStartPoint().lng));
+                path.add(new LatLng(p.getEndPoint().lat, p.getEndPoint().lng));
+
+                builder.include(new LatLng(p.getEndPoint().lat, p.getEndPoint().lng));
+                builder.include(new LatLng(p.getStartPoint().lat, p.getStartPoint().lng));
+            }
+
             if (path.size() > 0) {
-                PolylineOptions opts = new PolylineOptions().addAll(path).color(Color.BLUE).width(15);
+                PolylineOptions opts = new PolylineOptions().addAll(path).color(Color.GREEN).width(8);
                 route = mMap.addPolyline(opts);
             }
 
-            mMap.getUiSettings().setZoomControlsEnabled(true);
+            currentMarker.remove();
+            finishMarker.remove();
+            startMarker.remove();
+            finishMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(stepPointsInRoute.get(stepPointsInRoute.size() - 1).getEndPoint().lat, stepPointsInRoute.get(stepPointsInRoute.size() - 1).getEndPoint().lng)));
+            startMarker = mMap.addMarker(new MarkerOptions().position((new LatLng(stepPointsInRoute.get(0).getStartPoint().lat, stepPointsInRoute.get(0).getStartPoint().lng))));
+
             LatLngBounds bounds = builder.build();
             CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, 75);
             mMap.animateCamera(cu);
@@ -490,62 +534,43 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
     private ArrayList<String> getStringList() {
         ArrayList<String> stringList = new ArrayList<>();
 
+        long finalDistance = 0;
         for (int i = 0; i < stepPointsInRoute.size(); i++) {
             MapPoint point = stepPointsInRoute.get(i);
-            com.google.maps.model.LatLng firstPoint = point.getStartPoint();
-            com.google.maps.model.LatLng nextPoint = point.getEndPoint();
-            com.google.maps.model.LatLng lastPoint;
 
-            double xTwo = nextPoint.lat;
-            double xOne = firstPoint.lat;
-            double xLast;
+            com.google.maps.model.LatLng sourcePoint = point.getStartPoint();
+            com.google.maps.model.LatLng commonPoint = point.getEndPoint();
+            com.google.maps.model.LatLng nextPoint;
 
-            double yTwo = nextPoint.lng;
-            double yOne = firstPoint.lng;
-            double yLast;
-
-            double dx1 = xTwo - xOne;
-            double dy1 = yTwo - yOne;
-
-            double vectorLengthA = Math.sqrt(Math.pow(dx1, 2) + Math.pow(dy1, 2));
-            vectorLengthA = point.getDistance();
-
-            String tmpStr = "goForward " + (int) vectorLengthA + "*";
-
-            stringList.add(tmpStr);
+            double forwardDistance = SphericalUtil.computeDistanceBetween(new LatLng(sourcePoint.lat, sourcePoint.lng), new LatLng(commonPoint.lat, commonPoint.lng));
 
             if (i < stepPointsInRoute.size() - 1) {
-                firstPoint = stepPointsInRoute.get(i + 1).getStartPoint();
                 nextPoint = stepPointsInRoute.get(i + 1).getEndPoint();
-                lastPoint = stepPointsInRoute.get(i).getEndPoint();
 
+                double sourceDestinationDistance = SphericalUtil.computeDistanceBetween(new LatLng(sourcePoint.lat, sourcePoint.lng), new LatLng(nextPoint.lat, nextPoint.lng));
+                double commonDestinationDistance = SphericalUtil.computeDistanceBetween(new LatLng(commonPoint.lat, commonPoint.lng), new LatLng(nextPoint.lat, nextPoint.lng));
+                double temp = (Math.pow(commonDestinationDistance, 2) + Math.pow(forwardDistance, 2) - Math.pow(sourceDestinationDistance, 2)) / (2f * commonDestinationDistance * forwardDistance);
+                double crossProduct = ((commonPoint.lng - sourcePoint.lng) * (nextPoint.lat - commonPoint.lat)) - ((commonPoint.lat - sourcePoint.lat) * (nextPoint.lng - commonPoint.lng));
 
-                xTwo = nextPoint.lat;
-                xOne = firstPoint.lat;
-                xLast = lastPoint.lat;
-
-                yTwo = nextPoint.lng;
-                yOne = firstPoint.lng;
-                yLast = lastPoint.lng;
-
-                double rotation;
-
-                double angleOne = (Math.atan2((yOne - yLast), (xOne - xLast)));
-                double angleTwo = (Math.atan2((yTwo - yOne), (xTwo - xOne)));
-
-
-                rotation = (angleTwo - angleOne);
-                if (rotation > (Math.PI)) rotation = rotation - (2 * (Math.PI));
-
-
-                if (rotation > 0) {
-                    rotation = Math.toDegrees(rotation);
-                    tmpStr = "rotateClockwise " + rotation + "*";
-                } else {
-                    rotation = -Math.toDegrees(rotation);
-                    tmpStr = "rotateCounterClockwise " + rotation + "*";
+                double rotation = Math.acos(temp);
+                String rotateString = "";
+                if (crossProduct > 0) {
+                    rotation = Math.abs(Math.round(Math.toDegrees(rotation) - 180));
+                    rotateString = "rotateCounterClockwise " + rotation + "*";
+                } else if (crossProduct < 0) {
+                    rotation = Math.abs(Math.round(Math.toDegrees(rotation) - 180));
+                    rotateString = "rotateClockwise " + rotation + "*";
                 }
-                stringList.add(tmpStr);
+
+                if (rotation > 5.0f) {
+                    String tmpStr = "goForward " + (int) Math.round(finalDistance == 0 ? forwardDistance : finalDistance) + "*";
+
+                    stringList.add(tmpStr);
+                    stringList.add(rotateString);
+                    finalDistance = 0;
+                } else {
+                    finalDistance += (int)Math.round(forwardDistance);
+                }
             }
         }
 
@@ -554,14 +579,16 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 }
 
 class MapPoint {
+    private String instructions;
     private com.google.maps.model.LatLng startPoint;
     private com.google.maps.model.LatLng endPoint;
     private long distance;
 
-    public MapPoint(com.google.maps.model.LatLng startPoint, com.google.maps.model.LatLng endPoint, long distance) {
+    public MapPoint(com.google.maps.model.LatLng startPoint, com.google.maps.model.LatLng endPoint, long distance, String instructions) {
         this.startPoint = startPoint;
         this.endPoint = endPoint;
         this.distance = distance;
+        this.instructions = instructions;
     }
 
     public com.google.maps.model.LatLng getStartPoint() {
@@ -594,7 +621,16 @@ class MapPoint {
                 "startPoint=" + startPoint +
                 ", endPoint=" + endPoint +
                 ", distance=" + distance +
+                ", instructions" + instructions +
                 '}';
+    }
+
+    public String getInstructions() {
+        return instructions;
+    }
+
+    public void setInstructions(String instructions) {
+        this.instructions = instructions;
     }
 }
 
