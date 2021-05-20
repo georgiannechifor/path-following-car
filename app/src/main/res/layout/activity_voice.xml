@@ -6,40 +6,58 @@
     android:layout_height="match_parent"
     tools:context=".Voice">
 
-    <RelativeLayout
+    <EditText
+        android:id="@+id/text"
+        android:layout_margin="15dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:layout_marginLeft="10dp"
-        android:layout_marginRight="10dp">
+        android:layout_alignTop="@id/speech"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="40dp"
+        android:layout_alignParentStart="true"
+        android:hint="Tap to Speak"
+        android:padding="10dp" />
 
-        <EditText
-            android:id="@+id/text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignTop="@id/speech"
-            android:layout_alignParentTop="true"
-            android:layout_marginTop="40dp"
-            android:hint="Tap to Speak"
-            android:padding="10dp" />
+    <TextView
+        android:id="@+id/firstText"
+        android:layout_margin="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/text"
+        android:text="Say <<Move Forward @number>> - the car will move forwards for a distance equal to @number@ in centimeters"/>
 
-        <TextView
-            android:id="@+id/controls"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="100dp" />
+    <TextView
+        android:id="@+id/secondText"
+        android:layout_margin="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/firstText"
+        android:text="Say <<Move backwards @number>> - the car will move backwards for a distance equal to @number@ in centimeters"/>
 
-        <ImageView
-            android:id="@+id/speech"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginBottom="20dp"
-            android:backgroundTint="#F9F8FA"
-            android:contentDescription="TODO"
-            android:src="@drawable/ic_mic_black_off" />
-    </RelativeLayout>
+    <TextView
+        android:id="@+id/thirdText"
+        android:layout_margin="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/secondText"
+        android:text="Say <<Rotate clockwise>> - the car will rotate 15 degrees clockwise"/>
+
+    <TextView
+        android:id="@+id/forthText"
+        android:layout_margin="15dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/thirdText"
+        android:text="Say <<Rotate counterclockwise>> - the car will rotate 15 degrees counter clockwise"/>
+
+    <ImageView
+        android:id="@+id/speech2"
+        android:layout_width="60dp"
+        android:layout_height="match_parent"
+        android:layout_below="@id/forthText"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="205dp"
+        android:src="@drawable/ic_mic_black_off" />
+
 
 </RelativeLayout>

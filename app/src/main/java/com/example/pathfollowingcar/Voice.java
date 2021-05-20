@@ -1,6 +1,7 @@
 package com.example.pathfollowingcar;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -13,7 +14,6 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -45,6 +45,7 @@ public class Voice extends AppCompatActivity {
     }
 
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,8 +57,9 @@ public class Voice extends AppCompatActivity {
         setTitle("Voice control");
 
         editText = findViewById(R.id.text);
-        micButton = findViewById(R.id.speech);
+        micButton = findViewById(R.id.speech2);
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+
 
         connection = ClientSocket.getInstance(getApplicationContext());
 
@@ -70,6 +72,7 @@ public class Voice extends AppCompatActivity {
                     "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
                     "</ol>", Html.FROM_HTML_MODE_COMPACT));
         }
+
 
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -126,18 +129,15 @@ public class Voice extends AppCompatActivity {
             }
         });
 
-        micButton.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View view, MotionEvent motionEvent) {
-                if (motionEvent.getAction() == MotionEvent.ACTION_UP){
-                    speechRecognizer.stopListening();
-                }
-                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN){
-                    micButton.setImageResource(R.drawable.ic_mic_black_off_24dp);
-                    speechRecognizer.startListening(speechRecognizerIntent);
-                }
-                return false;
+        micButton.setOnTouchListener((view, motionEvent) -> {
+            if (motionEvent.getAction() == MotionEvent.ACTION_UP){
+                speechRecognizer.stopListening();
             }
+            if (motionEvent.getAction() == MotionEvent.ACTION_DOWN){
+                micButton.setImageResource(R.drawable.ic_mic_black_off_24dp);
+                speechRecognizer.startListening(speechRecognizerIntent);
+            }
+            return false;
         });
 
 
