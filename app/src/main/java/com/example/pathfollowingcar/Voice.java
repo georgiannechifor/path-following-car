@@ -9,14 +9,12 @@ import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
-import android.text.Html;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -63,15 +61,15 @@ public class Voice extends AppCompatActivity {
 
         connection = ClientSocket.getInstance(getApplicationContext());
 
-        TextView controls = (TextView) findViewById(R.id.controls);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            controls.setText(Html.fromHtml("<ol>\n" +
-                    "<li>Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters</li>\n" +
-                    "<li>Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters</li>\n" +
-                    "<li>Rotate clockwise - the car will rotate 15 degrees clockwise</li>\n" +
-                    "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
-                    "</ol>", Html.FROM_HTML_MODE_COMPACT));
-        }
+//        TextView controls = (TextView) findViewById(R.id.controls);
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//            controls.setText(Html.fromHtml("<ol>\n" +
+//                    "<li>Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters</li>\n" +
+//                    "<li>Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters</li>\n" +
+//                    "<li>Rotate clockwise - the car will rotate 15 degrees clockwise</li>\n" +
+//                    "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
+//                    "</ol>", Html.FROM_HTML_MODE_COMPACT));
+//        }
 
 
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
