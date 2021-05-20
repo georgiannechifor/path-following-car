@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.pathfollowingcar"
-        minSdkVersion 26
+        minSdkVersion 21
         targetSdkVersion 30
         versionCode 1
         versionName "1.0"
@@ -45,9 +45,11 @@ dependencies {
     implementation 'org.slf4j:slf4j-simple:1.7.30'
     implementation 'com.squareup.okhttp3:okhttp:4.9.0'
     implementation 'com.google.android.material:material:1.3.0'
-    implementation 'com.google.android.material:material:1.4.0-alpha01'
+    implementation 'com.google.android.material:material:1.4.0-alpha02'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.2.0'
+
+    implementation 'com.squareup.okhttp3:okhttp:4.9.0'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'

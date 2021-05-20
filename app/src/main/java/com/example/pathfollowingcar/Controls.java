@@ -1,51 +1,26 @@
 package com.example.pathfollowingcar;
 
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Set;
-import java.util.UUID;
-
-import static com.example.pathfollowingcar.Controls.MotorState.BACKWARD;
-import static com.example.pathfollowingcar.Controls.MotorState.FORWARD;
-import static com.example.pathfollowingcar.Controls.MotorState.STOP;
 
 @SuppressLint("ClickableViewAccessibility")
 public class Controls extends AppCompatActivity {
 
-    private Button topBtn, bottomBtn, connectBtn, rightBtn, leftBtn;
-    private MotorState leftMotorState = STOP;
-    private MotorState rightMotorState = STOP;
-    private BluetoothDevice MiDevice;
-    private BluetoothAdapter adapter;
-    private BluetoothSocket socket;
-    private InputStream in;
-    private OutputStream out;
-    private boolean isConnected = false;
+    private Button topBtn, bottomBtn, rightBtn, leftBtn;
+    private ClientSocket connection;
 
-    protected enum MotorState {
-        FORWARD(2),
-        STOP(0),
-        BACKWARD(1);
-        private int intValue;
-
-        MotorState(int value) {
-            intValue = value;
+    final class workerThread implements Runnable {
+        private final String btMsg;
+        public workerThread(String msg) { btMsg = msg; }
+        public void run() {
+            connection.sendMessage("[BUTTONS]" + btMsg);
         }
     }
 
@@ -55,115 +30,91 @@ public class Controls extends AppCompatActivity {
         setTitle("Buttons Control");
         setContentView(R.layout.activity_controls);
 
-        topBtn = (Button) findViewById(R.id.up);
+        topBtn = findViewById(R.id.up);
         bottomBtn = findViewById(R.id.down);
         leftBtn = findViewById(R.id.left);
         rightBtn = findViewById(R.id.right);
-        connectBtn = (Button) findViewById(R.id.connectButton);
+        connection = ClientSocket.getInstance(getApplicationContext());
 
-        topBtn.setEnabled(false);
-        bottomBtn.setEnabled(false);
-        leftBtn.setEnabled(false);
-        rightBtn.setEnabled(false);
-
+        
         topBtn.setOnTouchListener((view, motionEvent) -> {
-            switch(motionEvent.getAction()) {
-                case 0:
-                    upButtonStartTouch();
-                    break;
-                case 1:
-                    upButtonEndTouch();
-                    break;
+            try {
+                switch (motionEvent.getAction()) {
+                    case 0:
+                    case 2:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("forward*START*"))).start();
+                        break;
+                    case 1:
+                    case 3:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("forward*STOP*"))).start();
+                        break;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             return false;
         });
 
         bottomBtn.setOnTouchListener((view, motionEvent) -> {
-            switch(motionEvent.getAction()) {
-                case 0:
-                    downButtonStartTouch();
-                    break;
-                case 1:
-                    downButtonEndTouch();
-                    break;
+            try {
+                switch (motionEvent.getAction()) {
+                    case 0:
+                    case 2:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("backwards*START*"))).start();
+                        break;
+                    case 1:
+                    case 3:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("backwards*STOP*"))).start();
+                        break;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             return false;
         });
 
         leftBtn.setOnTouchListener((v, event) -> {
-            switch(event.getAction()) {
-                case 0:
-                    moveRightMotor(FORWARD);
-                    moveLeftMotor(BACKWARD);
-                    break;
-                case 1:
-                    moveRightMotor(rightMotorState);
-                    moveLeftMotor(leftMotorState);
-                    break;
+            try {
+                switch (event.getAction()) {
+                    case 0:
+                    case 2:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("left*START*"))).start();
+                        break;
+                    case 1:
+                    case 3:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("left*STOP*"))).start();
+                        break;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             return false;
         });
 
         rightBtn.setOnTouchListener((v, event) -> {
-            switch(event.getAction()) {
-                case 0:
-                    moveRightMotor(BACKWARD);
-                    moveLeftMotor(FORWARD);
-                    break;
-                case 1:
-                    moveRightMotor(rightMotorState);
-                    moveLeftMotor(leftMotorState);
-                    break;
+            try {
+                switch (event.getAction()) {
+                    case 0:
+                    case 2:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("right*START*"))).start();
+                        break;
+                    case 1:
+                    case 3:
+                        Thread.sleep(60);
+                        (new Thread(new workerThread("right*STOP*"))).start();
+                        break;
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             return false;
-        });
-
-        connectBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // BLUETOOTH CONNECT TO CAR
-                adapter = BluetoothAdapter.getDefaultAdapter();
-
-                if(!adapter.isEnabled()) {
-                    Intent enable = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(enable, 0);
-                }
-
-                Set<BluetoothDevice> pairedDevices = adapter.getBondedDevices();
-                if(pairedDevices.size() > 0) {
-                    for(BluetoothDevice device : pairedDevices) {
-                        if(device.getName().equals("HC-06")) {
-                            MiDevice = device;
-                            Toast.makeText(getApplicationContext(), "Device paired", Toast.LENGTH_SHORT).show();
-                            break;
-                        }
-                    }
-                }
-
-                UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-
-                try {
-                    if(MiDevice == null || MiDevice.createRfcommSocketToServiceRecord(uuid) == null) {
-                        Toast.makeText(getApplicationContext(), "Device is not paired to the car",  Toast.LENGTH_SHORT).show();
-                    } else {
-                        socket = MiDevice.createRfcommSocketToServiceRecord(uuid);
-
-                        socket.connect();
-                        out = socket.getOutputStream();
-                        in = socket.getInputStream();
-
-                        Toast.makeText(getApplicationContext(), "Connection established", Toast.LENGTH_SHORT).show();
-                        isConnected = true;
-
-                        topBtn.setEnabled(true);
-                        bottomBtn.setEnabled(true);
-                        leftBtn.setEnabled(true);
-                        rightBtn.setEnabled(true);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         });
     }
 
@@ -177,7 +128,7 @@ public class Controls extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         Intent intent;
-        switch(item.getItemId()) {
+        switch (item.getItemId()) {
             case R.id.draw:
                 intent = new Intent(getApplicationContext(), Drawing.class);
                 startActivity(intent);
@@ -197,48 +148,4 @@ public class Controls extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    void upButtonStartTouch() {
-        moveRightMotor(FORWARD);
-        moveLeftMotor(FORWARD);
-    }
-
-    void upButtonEndTouch() {
-        moveRightMotor(STOP);
-        moveLeftMotor(STOP);
-    }
-
-    void downButtonStartTouch() {
-        moveRightMotor(BACKWARD);
-        moveLeftMotor(BACKWARD);
-    }
-
-    void downButtonEndTouch() {
-        moveRightMotor(STOP);
-        moveLeftMotor(STOP);
-    }
-
-    void moveRightMotor(MotorState state) {
-        rightMotorState = state;
-        if(out != null) {
-            try {
-                out.write("rightMotor".getBytes());
-                out.write(state.intValue);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    void moveLeftMotor(MotorState state) {
-        leftMotorState = state;
-
-        if(out != null) {
-            try {
-                out.write("leftMotor".getBytes());
-                out.write(state.intValue);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }

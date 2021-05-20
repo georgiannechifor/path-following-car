@@ -85,6 +85,7 @@ class PaintView extends View {
 
     }
 
+    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
@@ -209,9 +210,6 @@ class PaintView extends View {
             pointsValidated = subdivide(pointsValidated);
         }
 
-        //<TO DO> Cast point list to array, run simplifyLines, cast back to Stack/List
-        int pSize = pointsValidated.size();
-
         Point[] tmp = new Point[pointsValidated.size()];
         for (int i = 0; i < tmp.length; i++) {
             tmp[i] = pointsValidated.get(i);
@@ -227,12 +225,9 @@ class PaintView extends View {
                 pointsValidated.remove(i + 1);
                 i--;
             }
-
-
         }
 
         stringList = toStringList(pointsValidated, DEFAULT_SCALE, VIEW_DIMENSION, sharedPreferences);
-
 
         this.invalidate();
     }
@@ -245,58 +240,13 @@ class PaintView extends View {
     }
 
     private synchronized Point[] simplifyLines(Point[] points) {
-        /* IMPLEMENTATION OF DOUGLAS-PEUCKER ALGORTHM, see: http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
-        function DouglasPeucker(PointList[], epsilon)
-            // Find the point with the maximum distance
-            dmax = 0
-            index = 0
-            end = length(PointList)
-            for i = 2 to ( end - 1) {
-                d = shortestDistanceToSegment(PointList[i], Line(PointList[1], PointList[end]))
-                if ( d > dmax ) {
-                    index = i
-                    dmax = d
-                }
-            }
-            // If max distance is greater than epsilon, recursively simplify
-            if ( dmax > epsilon ) {
-                // Recursive call
-                recResults1[] = DouglasPeucker(PointList[1...index], epsilon)
-                recResults2[] = DouglasPeucker(PointList[index...end], epsilon)
-                // Build the result list
-                ResultList[] = {recResults1[1...length(recResults1)-1] recResults2[1...length(recResults2)]}
-            } else {
-                ResultList[] = {PointList[1], PointList[end]}
-            }
-            // Return the result
-            return ResultList[]
-        end
-         */
-
-        /*
-          If the input only consists of 2 points, return the input.
-         */
         int epsilon = 3;
-        String optionValue = sharedPreferences.getString("PREF_LIST", "Low");
-
-        if (optionValue.compareTo("testValue1") == 0) {
-            epsilon = 0;
-        } else if (optionValue.compareTo("testValue2") == 0) {
-            epsilon = 3;
-        } else if (optionValue.compareTo("testValue3") == 0) {
-            epsilon = 15;
-        }
 
         if (points.length <= 2) return points;
-
-
-        /*
-        Check which point is the furthest from the line between the first and last element.
-         */
+        /* Check which point is the furthest from the line between the first and last element. */
         int dmax = 0, index = 0;
         int end = points.length - 1;
         for (int i = 1; i < end; i++) {
-            // int d = LineToPointDistance2D(points[0],points[end],points[i]);
             int d = (int) Line2D.ptSegDist(points[0].x, points[0].y, points[end].x, points[end].y, points[i].x, points[i].y);
             if (d > dmax) {
                 index = i;
@@ -307,11 +257,8 @@ class PaintView extends View {
 
         Point[] results;
 
-        /*
-        If the max distance is larger than a set constant.
-         */
+        /* If the max distance is greater than epsilon */
         if (dmax > epsilon) {
-
             /*
             Create new point array including the points from the first point to the point furthest
             from the line.
@@ -370,9 +317,6 @@ class PaintView extends View {
             results[1] = points[points.length - 1];
         }
 
-        /*
-        Return results.
-         */
         return results;
     }
 
@@ -426,8 +370,6 @@ class PaintView extends View {
 
     static List<String> toStringList(List<Point> pointList, double scale, int screenSize, SharedPreferences sharedPreferences) {
         ArrayList<String> stringList = new ArrayList<>();
-        int instructionCount = (2 * pointList.size()) - 3;
-        stringList.add(instructionCount + "!");
 
         String scaleValue = sharedPreferences.getString("SCALE_EDITTEXT", "450");
         try {
@@ -436,8 +378,6 @@ class PaintView extends View {
             System.err.println(e.getMessage());
         }
         for (int i = 0; i < (pointList.size() - 1); i++) {
-
-
             Point firstPoint = pointList.get(i);
             Point nextPoint = pointList.get(i + 1);
             Point lastPoint;

@@ -34,6 +34,16 @@ public class Voice extends AppCompatActivity {
     private EditText editText;
     private ImageView micButton;
 
+    private ClientSocket connection;
+
+    final class workerThread implements Runnable {
+        private final String btMsg;
+        public workerThread(String msg) { btMsg = msg; }
+        public void run() {
+            connection.sendMessage("[VOICE]" + btMsg);
+        }
+    }
+
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -43,17 +53,23 @@ public class Voice extends AppCompatActivity {
             checkPermission();
         }
 
+        setTitle("Voice control");
+
         editText = findViewById(R.id.text);
         micButton = findViewById(R.id.speech);
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
 
+        connection = ClientSocket.getInstance(getApplicationContext());
+
         TextView controls = (TextView) findViewById(R.id.controls);
-        controls.setText(Html.fromHtml("<ol>\n" +
-                "<li>Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters</li>\n" +
-                "<li>Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters</li>\n" +
-                "<li>Rotate clockwise - the car will rotate 15 degrees clockwise</li>\n" +
-                "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
-                "</ol>", Html.FROM_HTML_MODE_COMPACT));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            controls.setText(Html.fromHtml("<ol>\n" +
+                    "<li>Move Forward @number@ - the car will move forwards for a distance equal to @number@ in centimeters</li>\n" +
+                    "<li>Move backwards @number@ - the car will move backwards for a distance equal to @number@ in centimeters</li>\n" +
+                    "<li>Rotate clockwise - the car will rotate 15 degrees clockwise</li>\n" +
+                    "<li>Rotate counterclockwise - the car will rotate 15 degrees counter clockwise</li>\n" +
+                    "</ol>", Html.FROM_HTML_MODE_COMPACT));
+        }
 
         final Intent speechRecognizerIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -96,6 +112,7 @@ public class Voice extends AppCompatActivity {
                 micButton.setImageResource(R.drawable.ic_mic_black_off);
                 ArrayList<String> data = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 editText.setText(data.get(0));
+                (new Thread(new workerThread(data.get(0)))).start();
             }
 
             @Override

@@ -31,7 +31,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.pathfollowingcar.server.Api;
-import com.example.pathfollowingcar.server.DrawingDTO;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.maps.CameraUpdate;
@@ -63,17 +62,12 @@ import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.DirectionsStep;
 
-import org.json.JSONObject;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
@@ -96,6 +90,16 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
     private static final int DESTINATION_PLACE_AUTOCOMPLETE_REQUEST_CODE = 63;
     private static final int REQUEST_PERMISSION_PHONE_STATE = 1;
     private static final String[] LOCATION_PERMISSIONS = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_BACKGROUND_LOCATION};
+
+    private ClientSocket connection;
+
+    final class workerThread implements Runnable {
+        private final String btMsg;
+        public workerThread(String msg) { btMsg = msg; }
+        public void run() {
+            connection.sendMessage("[MAPS]" + btMsg);
+        }
+    }
 
 
     private void showPhoneStatePermission() {
@@ -125,6 +129,8 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        setTitle("Google Maps Route");
+
         showPhoneStatePermission();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -138,6 +144,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 .build();
 
         api = retrofit.create(Api.class);
+        connection = ClientSocket.getInstance(getApplicationContext());
 
         MaterialButton setStartPoint = findViewById(R.id.setStartPoint);
         MaterialButton setFinishPoint = findViewById(R.id.setFinishPoint);
@@ -206,26 +213,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
         Button sendButton = findViewById(R.id.sendData);
         sendButton.setOnClickListener(v -> {
-            try {
-                JSONObject obj = new JSONObject();
-                obj.put("points", getStringList());
-                Call<DrawingDTO> postCall = api.postMaps(obj);
-
-                postCall.enqueue(new Callback<DrawingDTO>() {
-                    @Override
-                    public void onResponse(Call<DrawingDTO> call, Response<DrawingDTO> response) {
-                        Toast.makeText(getApplicationContext(), response.code() + " " + response.message(), Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onFailure(Call<DrawingDTO> call, Throwable t) {
-                        Toast.makeText(getApplicationContext(), t.getMessage(), Toast.LENGTH_SHORT).show();
-
-                    }
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            (new Thread(new workerThread(getStringList().toString()))).start();
 
             mMap.getUiSettings().setZoomControlsEnabled(true);
             mMap.getUiSettings().setScrollGesturesEnabled(true);
@@ -407,7 +395,7 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
 
     private void setStartLocation(Double lat, Double lng, String addr) {
         if (route != null && route.getPoints().size() > 0) route.remove();
-        currentMarker.remove();
+        if(currentMarker != null) currentMarker.remove();
         String address = "Current Address";
         if (addr.isEmpty()) {
             Geocoder gcd = new Geocoder(this, Locale.getDefault());
@@ -541,9 +529,9 @@ public class Maps extends AppCompatActivity implements OnMapReadyCallback {
                 route = mMap.addPolyline(opts);
             }
 
-            currentMarker.remove();
-            finishMarker.remove();
-            startMarker.remove();
+            if(currentMarker != null) currentMarker.remove();
+            if(finishMarker != null) finishMarker.remove();
+            if(startMarker != null) startMarker.remove();
             finishMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(stepPointsInRoute.get(stepPointsInRoute.size() - 1).getEndPoint().lat, stepPointsInRoute.get(stepPointsInRoute.size() - 1).getEndPoint().lng)));
             startMarker = mMap.addMarker(new MarkerOptions().position((new LatLng(stepPointsInRoute.get(0).getStartPoint().lat, stepPointsInRoute.get(0).getStartPoint().lng))));
 
