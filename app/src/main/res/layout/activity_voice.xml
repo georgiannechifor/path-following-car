@@ -14,7 +14,7 @@
         android:layout_alignParentTop="true"
         android:layout_marginTop="40dp"
         android:layout_alignParentStart="true"
-        android:hint="Tap to Speak"
+        android:hint="@string/tapToSpeak"
         android:padding="10dp" />
 
     <TextView
@@ -23,7 +23,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/text"
-        android:text="Say <<Move Forward @number>> - the car will move forwards for a distance equal to @number@ in centimeters"/>
+        android:text="@string/forwardCommand"/>
 
     <TextView
         android:id="@+id/secondText"
@@ -31,7 +31,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/firstText"
-        android:text="Say <<Move backwards @number>> - the car will move backwards for a distance equal to @number@ in centimeters"/>
+        android:text="@string/backwardsCommand"/>
 
     <TextView
         android:id="@+id/thirdText"
@@ -39,7 +39,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/secondText"
-        android:text="Say <<Rotate clockwise>> - the car will rotate 15 degrees clockwise"/>
+        android:text="@string/clockwiseCommand"/>
 
     <TextView
         android:id="@+id/forthText"
@@ -47,7 +47,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/thirdText"
-        android:text="Say <<Rotate counterclockwise>> - the car will rotate 15 degrees counter clockwise"/>
+        android:text="@string/counterClockwiseCommand"/>
 
     <ImageView
         android:id="@+id/speech2"

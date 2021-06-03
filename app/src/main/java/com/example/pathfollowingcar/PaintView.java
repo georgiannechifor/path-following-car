@@ -397,8 +397,7 @@ class PaintView extends View {
             double ratio = scale / screenSize;
             vectorLengthA = ratio * vectorLengthA;
 
-            String tmpStr = "goForward " + (int) vectorLengthA + "*";
-
+            String tmpStr = "goForward*" + (int) vectorLengthA;
             stringList.add(tmpStr);
 
             if (i < pointList.size() - 2) {
@@ -427,10 +426,10 @@ class PaintView extends View {
 
                 if (rotation > 0) {
                     rotation = (int) Math.toDegrees(rotation);
-                    tmpStr = "rotateClockwise " + rotation + "*";
+                    tmpStr = "rotateClockwise*" + rotation;
                 } else {
                     rotation = -(int) Math.toDegrees(rotation);
-                    tmpStr = "rotateCounterClockwise " + rotation + "*";
+                    tmpStr = "rotateCounterClockwise*" + rotation;
                 }
                 stringList.add(tmpStr);
             }

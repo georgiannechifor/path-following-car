@@ -10,5 +10,10 @@
 
         4. Rotate counterclockwise - the car will rotate 15 degrees counter clockwise
     </string>
+    <string name="forwardCommand"><![CDATA[Say <<Move Forward @number>> - the car will move forwards for a distance equal to @number@ in centimeters]]></string>
+    <string name="backwardsCommand"><![CDATA[Say <<Move backwards @number>> - the car will move backwards for a distance equal to @number@ in centimeters]]></string>
+    <string name="clockwiseCommand"><![CDATA[Say <<Rotate clockwise>> - the car will rotate 15 degrees clockwise]]></string>
+    <string name="counterClockwiseCommand"><![CDATA[Say <<Rotate counterclockwise>> - the car will rotate 15 degrees counter clockwise]]></string>
+    <string name="tapToSpeak">Tap to Speak</string>
 </resources>
 
