@@ -15,7 +15,7 @@ public class ClientSocket extends AppCompatActivity {
 
 
     private static final int SERVER_PORT = 6000;
-    private static final String SERVER_ADDRESS = "192.168.43.132";
+    private static final String SERVER_ADDRESS = "192.168.43.253";
     private static Socket socket;
     private static PrintWriter out;
     private static BufferedReader in;
